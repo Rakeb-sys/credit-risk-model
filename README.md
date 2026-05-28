@@ -1,6 +1,3 @@
-Here is a comprehensive, production-ready `README.md` structured exactly around your project requirements, including the rigorous conceptual deep dive required for **Task 1**.
-
----
 
 # Credit Risk Modeling & Target Engineering Pipeline
 
