@@ -1,3 +1,73 @@
+# Credit Scoring Business Understanding
+
+## Basel II and the Need for Interpretable Credit Risk Models
+
+The Basel II Accord emphasizes the importance of accurate risk measurement and sound risk management practices within financial institutions. Under Basel II, banks are required to quantify credit risk and maintain sufficient capital reserves to absorb potential losses. Because credit decisions directly affect regulatory capital requirements, financial institutions must be able to explain how risk estimates are generated.
+
+As a result, credit scoring models should not only be accurate but also interpretable and well documented. Regulators, auditors, risk managers, and business stakeholders need to understand the factors influencing a customer's risk score. Transparent models make it easier to validate assumptions, identify potential biases, demonstrate regulatory compliance, and justify lending decisions. Well-documented models also support governance processes such as model monitoring, validation, and periodic review.
+
+---
+
+## The Need for a Proxy Variable and Its Associated Risks
+
+In many real-world credit datasets, a direct "default" label is not available. Instead, organizations must construct a proxy variable that approximates default behavior using available information. For example, a customer may be classified as high risk if they are more than 90 days past due, have multiple missed payments, or exhibit prolonged delinquency.
+
+A proxy variable is necessary because supervised machine learning models require a target variable for training. Without a target that represents credit risk, the model cannot learn the relationship between customer characteristics and repayment outcomes.
+
+However, proxy-based prediction introduces several business risks:
+
+* **Misclassification Risk:** The proxy may not perfectly represent actual default behavior, causing good customers to be labeled as risky or risky customers to be labeled as safe.
+* **Model Bias:** If the proxy reflects historical business practices or operational constraints rather than true credit risk, the model may inherit those biases.
+* **Reduced Predictive Accuracy:** The model learns patterns associated with the proxy rather than actual defaults, potentially reducing performance when deployed.
+* **Regulatory Concerns:** Poorly defined proxies can make model decisions difficult to justify during audits or regulatory reviews.
+* **Financial Impact:** Incorrect risk assessment can lead to increased loan losses, missed lending opportunities, or inefficient capital allocation.
+
+Therefore, the definition of the proxy variable should be carefully designed, documented, and validated against business objectives.
+
+---
+
+## Trade-offs Between Interpretable and High-Performance Models
+
+In regulated financial environments, there is often a trade-off between model interpretability and predictive performance.
+
+### Logistic Regression with Weight of Evidence (WoE)
+
+**Advantages**
+
+* Highly interpretable and transparent.
+* Easy to explain to regulators and business stakeholders.
+* Coefficients clearly show how each variable influences risk.
+* Supports regulatory compliance and model governance.
+* Stable and straightforward to monitor over time.
+
+**Disadvantages**
+
+* May fail to capture complex non-linear relationships.
+* Typically achieves lower predictive performance than advanced machine learning models.
+* Requires significant feature engineering and binning.
+
+### Gradient Boosting Models (e.g., XGBoost, LightGBM)
+
+**Advantages**
+
+* Often achieves superior predictive accuracy.
+* Captures non-linear relationships and variable interactions automatically.
+* Handles large and complex datasets effectively.
+* Can improve risk discrimination and reduce prediction errors.
+
+**Disadvantages**
+
+* Less transparent and more difficult to explain.
+* Model decisions may appear as a "black box" to stakeholders.
+* Requires additional explainability techniques such as SHAP values or feature importance analysis.
+* Can create challenges for regulatory approval, validation, and governance.
+
+### Business Perspective
+
+For highly regulated lending environments, interpretability is often as important as predictive accuracy. Logistic Regression with WoE remains a widely accepted industry standard because it balances performance with transparency and regulatory compliance. However, many institutions increasingly use Gradient Boosting models when higher predictive power is required, often supplementing them with explainability tools and robust model governance frameworks.
+
+The choice between the two approaches depends on the organization's regulatory obligations, risk appetite, explainability requirements, and business objectives.
+
 
 # Credit Risk Modeling & Target Engineering Pipeline
 
