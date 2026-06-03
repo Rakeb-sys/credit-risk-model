@@ -9,6 +9,8 @@ from sklearn.impute import SimpleImputer
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder, StandardScaler
 from sklearn.model_selection import train_test_split
+from sklearn.cluster import KMeans
+
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -403,3 +405,90 @@ def fit_transform_pipeline(
     pipeline = build_feature_pipeline(use_woe=use_woe)
     transformed = pipeline.fit_transform(df)
     return pipeline, transformed
+
+
+class ProxyTargetEngineer(BaseEstimator, TransformerMixin):
+    """
+    Computes RFM profiles, segments customers using K-Means, 
+    and engineers an 'is_high_risk' proxy target column.
+    """
+    def __init__(self, n_clusters: int = 3, random_state: int = 42):
+        self.n_clusters = n_clusters
+        self.random_state = random_state
+        self.scaler = StandardScaler()
+        self.kmeans = KMeans(n_clusters=self.n_clusters, random_state=self.random_state, n_init=10)
+        self.high_risk_cluster_id_ = None
+
+    def fit(self, X: pd.DataFrame, y=None):
+        X = X.copy()
+        X['TransactionStartTime'] = pd.to_datetime(X['TransactionStartTime'])
+        
+        # 1. Define Snapshot Date consistently (1 day after the latest transaction)
+        snapshot_date = X['TransactionStartTime'].max() + pd.Timedelta(days=1)
+        
+        # 2. Calculate RFM Metrics
+        rfm = X.groupby('CustomerId').agg({
+            'TransactionStartTime': lambda x: (snapshot_date - x.max()).days, # Recency
+            'TransactionId': 'count',                                         # Frequency
+            'Amount': 'sum'                                                   # Monetary
+        }).rename(columns={
+            'TransactionStartTime': 'Recency',
+            'TransactionId': 'Frequency',
+            'Amount': 'Monetary'
+        })
+        
+        # Handle negative or zero monetary balances safely before log transforming
+        rfm['Monetary'] = rfm['Monetary'].clip(lower=0.1)
+        
+        # 3. Log Transform to handle skewness, then Scale
+        rfm_log = np.log1p(rfm)
+        rfm_scaled = self.scaler.fit_transform(rfm_log)
+        
+        # 4. Run K-Means
+        self.kmeans.fit(rfm_scaled)
+        rfm['Cluster'] = self.kmeans.labels_
+        
+        # 5. Automatically identify the "High-Risk" Cluster 
+        # (Lowest average frequency and lowest average monetary spend)
+        cluster_profiles = rfm.groupby('Cluster')[['Frequency', 'Monetary']].mean()
+        
+        # High risk = rank by combined low metrics
+        # We find the cluster where the sum of normalized ranks for Frequency and Monetary is lowest
+        rank_sum = cluster_profiles['Frequency'].rank() + cluster_profiles['Monetary'].rank()
+        self.high_risk_cluster_id_ = rank_sum.idxmin()
+        
+        logger.info(f"Identified Cluster {self.high_risk_cluster_id_} as the High-Risk Proxy.")
+        return self
+
+    def transform(self, X: pd.DataFrame) -> pd.DataFrame:
+        X = X.copy()
+        X['TransactionStartTime'] = pd.to_datetime(X['TransactionStartTime'])
+        snapshot_date = X['TransactionStartTime'].max() + pd.Timedelta(days=1)
+        
+        # Recalculate customer-level labels to safely map back to transaction entries
+        rfm = X.groupby('CustomerId').agg({
+            'TransactionStartTime': lambda x: (snapshot_date - x.max()).days,
+            'TransactionId': 'count',
+            'Amount': 'sum'
+        }).rename(columns={
+            'TransactionStartTime': 'Recency',
+            'TransactionId': 'Frequency',
+            'Amount': 'Monetary'
+        })
+        
+        rfm['Monetary'] = rfm['Monetary'].clip(lower=0.1)
+        rfm_log = np.log1p(rfm)
+        rfm_scaled = self.scaler.transform(rfm_log)
+        
+        # Predict clusters
+        clusters = self.kmeans.predict(rfm_scaled)
+        rfm['Cluster'] = clusters
+        
+        # Assign Target column: 1 if high-risk cluster, else 0
+        rfm['is_high_risk'] = (rfm['Cluster'] == self.high_risk_cluster_id_).astype(int)
+        
+        # Map target back to the transaction-level dataframe
+        target_map = rfm['is_high_risk'].to_dict()
+        X['is_high_risk'] = X['CustomerId'].map(target_map)
+        
+        return X
