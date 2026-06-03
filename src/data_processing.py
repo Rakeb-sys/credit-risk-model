@@ -492,3 +492,40 @@ class ProxyTargetEngineer(BaseEstimator, TransformerMixin):
         X['is_high_risk'] = X['CustomerId'].map(target_map)
         
         return X
+    
+def split_data(
+    df: pd.DataFrame,
+    target: str = TARGET_COL,
+    test_size: float = 0.2,
+    val_size: float = 0.1,
+    random_state: int = 42,
+) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.Series, pd.Series, pd.Series]:
+    X = df.drop(columns=[target])
+    y = df[target]
+
+    X_temp, X_test, y_temp, y_test = train_test_split(
+        X, y, test_size=test_size, random_state=random_state, stratify=y
+    )
+    val_frac = val_size / (1 - test_size)
+    X_train, X_val, y_train, y_val = train_test_split(
+        X_temp, y_temp, test_size=val_frac, random_state=random_state, stratify=y_temp
+    )
+
+    logger.info(f"Train: {len(X_train)} | Val: {len(X_val)} | Test: {len(X_test)}")
+    return X_train, X_val, X_test, y_train, y_val, y_test
+
+
+def scale_features(
+    X_train: pd.DataFrame,
+    X_val: pd.DataFrame,
+    X_test: pd.DataFrame,
+    num_cols: Optional[List[str]] = None,
+) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, StandardScaler]:
+    """Fit scaler on train, transform all splits using FeatureScaler."""
+    scaler_transformer = FeatureScaler(numerical_cols=num_cols)
+    scaler_transformer.fit(X_train)
+    X_train_scaled = scaler_transformer.transform(X_train)
+    X_val_scaled = scaler_transformer.transform(X_val)
+    X_test_scaled = scaler_transformer.transform(X_test)
+    return X_train_scaled, X_val_scaled, X_test_scaled, scaler_transformer.scaler_
+
