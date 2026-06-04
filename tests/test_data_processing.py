@@ -192,7 +192,7 @@ class TestFeatureEngineering:
     def test_new_columns_created(self, sample_df):
         result = engineer_features(sample_df)
         """Test 1: Ensures engineered date features are accurately computed and extracted."""
-        processed_df = engineer_features(sample_transaction_dataframe)
+        processed_df = engineer_features(sample_df)
 
         # Verify new expected time dimensions exist
         expected_cols = [
