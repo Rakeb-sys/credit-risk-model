@@ -6,18 +6,30 @@ import pandas as pd
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import (
-    accuracy_score, classification_report, confusion_matrix,
-    f1_score, precision_score, recall_score, roc_auc_score,
+    accuracy_score,
+    classification_report,
+    confusion_matrix,
+    f1_score,
+    precision_score,
+    recall_score,
+    roc_auc_score,
 )
 from sklearn.model_selection import GridSearchCV, StratifiedKFold
 from xgboost import XGBClassifier
 
 from src.data_processing import (
-    load_processed_data, split_data, scale_features,
-    encode_woe, CATEGORICAL_COLS, NUMERICAL_COLS, TARGET_COL,
+    load_processed_data,
+    split_data,
+    scale_features,
+    encode_woe,
+    CATEGORICAL_COLS,
+    NUMERICAL_COLS,
+    TARGET_COL,
 )
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
+)
 logger = logging.getLogger(__name__)
 
 MODEL_OUTPUT_DIR = "data/processed"
@@ -26,7 +38,10 @@ MODEL_FILENAME = "best_model.joblib"
 
 # Evaluation
 
-def evaluate_model(model, X: pd.DataFrame, y: pd.Series, split_name: str = "Test") -> dict:
+
+def evaluate_model(
+    model, X: pd.DataFrame, y: pd.Series, split_name: str = "Test"
+) -> dict:
     """Compute and log all evaluation metrics."""
     y_pred = model.predict(X)
     y_prob = model.predict_proba(X)[:, 1] if hasattr(model, "predict_proba") else y_pred
@@ -44,11 +59,14 @@ def evaluate_model(model, X: pd.DataFrame, y: pd.Series, split_name: str = "Test
     for k, v in metrics.items():
         if k != "split":
             logger.info(f"  {k:12s}: {v:.4f}")
-    logger.info(f"\n{classification_report(y, y_pred, target_names=['Good Credit', 'Default'])}")
+    logger.info(
+        f"\n{classification_report(y, y_pred, target_names=['Good Credit', 'Default'])}"
+    )
     return metrics
 
 
-# Models 
+# Models
+
 
 def train_logistic_regression(X_train, y_train) -> LogisticRegression:
     """Train Logistic Regression with cross-validation and regularization tuning."""
@@ -57,7 +75,11 @@ def train_logistic_regression(X_train, y_train) -> LogisticRegression:
     cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
     gs = GridSearchCV(
         LogisticRegression(class_weight="balanced", random_state=42),
-        param_grid, cv=cv, scoring="roc_auc", n_jobs=-1, verbose=0,
+        param_grid,
+        cv=cv,
+        scoring="roc_auc",
+        n_jobs=-1,
+        verbose=0,
     )
     gs.fit(X_train, y_train)
     logger.info(f"Best LR params: {gs.best_params_} | CV AUC: {gs.best_score_:.4f}")
@@ -75,7 +97,11 @@ def train_random_forest(X_train, y_train) -> RandomForestClassifier:
     cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
     gs = GridSearchCV(
         RandomForestClassifier(class_weight="balanced", random_state=42),
-        param_grid, cv=cv, scoring="roc_auc", n_jobs=-1, verbose=0,
+        param_grid,
+        cv=cv,
+        scoring="roc_auc",
+        n_jobs=-1,
+        verbose=0,
     )
     gs.fit(X_train, y_train)
     logger.info(f"Best RF params: {gs.best_params_} | CV AUC: {gs.best_score_:.4f}")
@@ -98,7 +124,11 @@ def train_xgboost(X_train, y_train) -> XGBClassifier:
             eval_metric="auc",
             random_state=42,
         ),
-        param_grid, cv=cv, scoring="roc_auc", n_jobs=-1, verbose=0,
+        param_grid,
+        cv=cv,
+        scoring="roc_auc",
+        n_jobs=-1,
+        verbose=0,
     )
     gs.fit(X_train, y_train)
     logger.info(f"Best XGB params: {gs.best_params_} | CV AUC: {gs.best_score_:.4f}")
@@ -106,6 +136,7 @@ def train_xgboost(X_train, y_train) -> XGBClassifier:
 
 
 # Main Training Loop
+
 
 def main():
     # ── Load & prepare data ──
@@ -119,7 +150,9 @@ def main():
     df_model = df[feature_cols + [TARGET_COL]].dropna()
 
     X_train, X_val, X_test, y_train, y_val, y_test = split_data(df_model)
-    X_train, X_val, X_test, scaler = scale_features(X_train, X_val, X_test, num_cols=NUMERICAL_COLS)
+    X_train, X_val, X_test, scaler = scale_features(
+        X_train, X_val, X_test, num_cols=NUMERICAL_COLS
+    )
 
     # ── Train models ──
     models = {

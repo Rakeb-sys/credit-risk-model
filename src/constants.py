@@ -5,20 +5,15 @@ CATEGORICAL_COLS = [
     "SubscriptionId",
     "CustomerId",
     "CurrencyCode",
-    "CountryCode",	
-    "ProviderId",	
-    "ProductId",	
-    "ProductCategory",	
-    "ChannelId",	
-    "TransactionStartTime"
+    "CountryCode",
+    "ProviderId",
+    "ProductId",
+    "ProductCategory",
+    "ChannelId",
+    "TransactionStartTime",
 ]
 
-NUMERICAL_COLS = [
-    "Amount",
-    "Value,"
-    "PricingStrategy",
-    "FraudResult"
-]
+NUMERICAL_COLS = ["Amount", "Value," "PricingStrategy", "FraudResult"]
 
 TARGET_COL = "FraudResult"
 
@@ -30,14 +25,14 @@ COLUMN_NAMES = [
     "SubscriptionId",
     "CustomerId",
     "CurrencyCode",
-    "CountryCode",	
-    "ProviderId",	
-    "ProductId",	
-    "ProductCategory",	
-    "ChannelId",	
-    "Amount",	
-    "Value",	
-    "TransactionStartTime",	
-    "PricingStrategy",	
-    "FraudResult"   # 1 = Good, 2 = Bad
+    "CountryCode",
+    "ProviderId",
+    "ProductId",
+    "ProductCategory",
+    "ChannelId",
+    "Amount",
+    "Value",
+    "TransactionStartTime",
+    "PricingStrategy",
+    "FraudResult",  # 1 = Good, 2 = Bad
 ]

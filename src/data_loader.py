@@ -1,24 +1,21 @@
 import pandas as pd
 import os
 
+
 def load_data(file_path, **kwargs):
 
     try:
 
         # Check if file exists
         if not os.path.exists(file_path):
-            raise FileNotFoundError(
-                f"File not found: {file_path}"
-            )
+            raise FileNotFoundError(f"File not found: {file_path}")
 
         # Load dataset with flexible parameters
         df = pd.read_csv(file_path, **kwargs)
 
         # Validate dataframe
         if df.empty:
-            raise ValueError(
-                "Loaded dataframe is empty."
-            )
+            raise ValueError("Loaded dataframe is empty.")
 
         print("Dataset loaded successfully.")
         print(f"Shape: {df.shape}")

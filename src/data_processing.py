@@ -13,31 +13,54 @@ from sklearn.cluster import KMeans
 
 
 # Setup logging
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
+)
 logger = logging.getLogger(__name__)
 
 # --- CONSTANTS ---
 CATEGORICAL_COLS = [
-    "TransactionId", "BatchId", "AccountId", "SubscriptionId", "CustomerId",
-    "CurrencyCode", "CountryCode", "ProviderId", "ProductId", "ProductCategory",
-    "ChannelId", "TransactionStartTime"
+    "TransactionId",
+    "BatchId",
+    "AccountId",
+    "SubscriptionId",
+    "CustomerId",
+    "CurrencyCode",
+    "CountryCode",
+    "ProviderId",
+    "ProductId",
+    "ProductCategory",
+    "ChannelId",
+    "TransactionStartTime",
 ]
 
-NUMERICAL_COLS = [
-    "Amount", "Value", "PricingStrategy", "FraudResult"
-]
+NUMERICAL_COLS = ["Amount", "Value", "PricingStrategy", "FraudResult"]
 
 TARGET_COL = "FraudResult"
 
 COLUMN_NAMES = [
-    "TransactionId", "BatchId", "AccountId", "SubscriptionId", "CustomerId",
-    "CurrencyCode", "CountryCode", "ProviderId", "ProductId", "ProductCategory",
-    "ChannelId", "Amount", "Value", "TransactionStartTime", "PricingStrategy", "FraudResult"
+    "TransactionId",
+    "BatchId",
+    "AccountId",
+    "SubscriptionId",
+    "CustomerId",
+    "CurrencyCode",
+    "CountryCode",
+    "ProviderId",
+    "ProductId",
+    "ProductCategory",
+    "ChannelId",
+    "Amount",
+    "Value",
+    "TransactionStartTime",
+    "PricingStrategy",
+    "FraudResult",
 ]
 
 # --- EXTENDED UTILITIES DETECT ---
 try:
     from xverse import iv, WoETransformer
+
     _has_xverse = True
 except Exception:
     iv = None
@@ -46,6 +69,7 @@ except Exception:
 
 try:
     from woe import WOEEncoder  # type: ignore
+
     _has_woe = True
 except Exception:
     WOEEncoder = None
@@ -58,27 +82,39 @@ def load_raw_data(filepath: str) -> pd.DataFrame:
     df = pd.read_csv(filepath)
     if not set(COLUMN_NAMES).issubset(df.columns):
         df = pd.read_csv(filepath, names=COLUMN_NAMES)
-        
+
     df[TARGET_COL] = (df[TARGET_COL] == 2).astype(int)
     return df
+
 
 def load_processed_data(filepath: str) -> pd.DataFrame:
     logger.info(f"Loading processed data from: {filepath}")
     return pd.read_csv(filepath)
 
+
 # 2. Advanced Feature Engineering (Customer Level Aggregates)
 class CustomerAggregationTransformer(BaseEstimator, TransformerMixin):
     def fit(self, X: pd.DataFrame, y=None):
-        grouped = X.groupby('CustomerId')['Amount'].agg(['sum', 'mean', 'count', 'std'])
-        self.stats_map_ = grouped.to_dict(orient='index')
+        grouped = X.groupby("CustomerId")["Amount"].agg(["sum", "mean", "count", "std"])
+        self.stats_map_ = grouped.to_dict(orient="index")
         return self
 
     def transform(self, X: pd.DataFrame) -> pd.DataFrame:
         X = X.copy()
-        X['Total_Trans_Amount'] = X['CustomerId'].map(lambda c: self.stats_map_.get(c, {}).get('sum', 0))
-        X['Avg_Trans_Amount'] = X['CustomerId'].map(lambda c: self.stats_map_.get(c, {}).get('mean', 0))
-        X['Transaction_Count'] = X['CustomerId'].map(lambda c: self.stats_map_.get(c, {}).get('count', 0))
-        X['Std_Trans_Amount'] = X['CustomerId'].map(lambda c: self.stats_map_.get(c, {}).get('std', 0)).fillna(0)
+        X["Total_Trans_Amount"] = X["CustomerId"].map(
+            lambda c: self.stats_map_.get(c, {}).get("sum", 0)
+        )
+        X["Avg_Trans_Amount"] = X["CustomerId"].map(
+            lambda c: self.stats_map_.get(c, {}).get("mean", 0)
+        )
+        X["Transaction_Count"] = X["CustomerId"].map(
+            lambda c: self.stats_map_.get(c, {}).get("count", 0)
+        )
+        X["Std_Trans_Amount"] = (
+            X["CustomerId"]
+            .map(lambda c: self.stats_map_.get(c, {}).get("std", 0))
+            .fillna(0)
+        )
         return X
 
 
@@ -102,8 +138,16 @@ class DataFrameImputer(BaseEstimator, TransformerMixin):
             X = X.drop(columns=[TARGET_COL])
 
         all_columns = list(X.columns)
-        self.numerical_cols_ = [col for col in (self.numerical_cols or all_columns) if col in all_columns and pd.api.types.is_numeric_dtype(X[col])]
-        self.categorical_cols_ = [col for col in (self.categorical_cols or all_columns) if col in all_columns and not pd.api.types.is_numeric_dtype(X[col])]
+        self.numerical_cols_ = [
+            col
+            for col in (self.numerical_cols or all_columns)
+            if col in all_columns and pd.api.types.is_numeric_dtype(X[col])
+        ]
+        self.categorical_cols_ = [
+            col
+            for col in (self.categorical_cols or all_columns)
+            if col in all_columns and not pd.api.types.is_numeric_dtype(X[col])
+        ]
 
         self.num_imputer_ = SimpleImputer(strategy=self.num_strategy)
         self.cat_imputer_ = SimpleImputer(strategy=self.cat_strategy)
@@ -117,9 +161,13 @@ class DataFrameImputer(BaseEstimator, TransformerMixin):
     def transform(self, X: pd.DataFrame) -> pd.DataFrame:
         X = X.copy()
         if self.numerical_cols_:
-            X[self.numerical_cols_] = self.num_imputer_.transform(X[self.numerical_cols_])
+            X[self.numerical_cols_] = self.num_imputer_.transform(
+                X[self.numerical_cols_]
+            )
         if self.categorical_cols_:
-            X[self.categorical_cols_] = self.cat_imputer_.transform(X[self.categorical_cols_])
+            X[self.categorical_cols_] = self.cat_imputer_.transform(
+                X[self.categorical_cols_]
+            )
         return X
 
 
@@ -131,7 +179,9 @@ class OutlierCapper(BaseEstimator, TransformerMixin):
 
     def fit(self, X: pd.DataFrame, y=None):
         X = X.copy()
-        self.cols_ = self.cols or [c for c in NUMERICAL_COLS if c in X.columns and c != TARGET_COL]
+        self.cols_ = self.cols or [
+            c for c in NUMERICAL_COLS if c in X.columns and c != TARGET_COL
+        ]
         self.lower_bounds_ = {}
         self.upper_bounds_ = {}
         for col in self.cols_:
@@ -146,11 +196,16 @@ class OutlierCapper(BaseEstimator, TransformerMixin):
         X = X.copy()
         for col in self.cols_:
             if col in X.columns and col in self.lower_bounds_:
-                X[col] = X[col].clip(lower=self.lower_bounds_[col], upper=self.upper_bounds_[col])
+                X[col] = X[col].clip(
+                    lower=self.lower_bounds_[col], upper=self.upper_bounds_[col]
+                )
         return X
 
-def cap_outliers(df: pd.DataFrame, cols: Optional[List[str]] = None, iqr_multiplier: float = 1.5) -> pd.DataFrame:
-    #Cap outliers at IQR fences (Winsorization) using OutlierCapper."""
+
+def cap_outliers(
+    df: pd.DataFrame, cols: Optional[List[str]] = None, iqr_multiplier: float = 1.5
+) -> pd.DataFrame:
+    # Cap outliers at IQR fences (Winsorization) using OutlierCapper."""
     capper = OutlierCapper(cols=cols, iqr_multiplier=iqr_multiplier)
     return capper.fit_transform(df)
 
@@ -158,23 +213,24 @@ def cap_outliers(df: pd.DataFrame, cols: Optional[List[str]] = None, iqr_multipl
 # 5. Datetime Feature Extractor
 def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
-    df['TransactionStartTime'] = pd.to_datetime(df['TransactionStartTime'])
+    df["TransactionStartTime"] = pd.to_datetime(df["TransactionStartTime"])
 
-    df['TransactionHour'] = df['TransactionStartTime'].dt.hour
-    df['TransactionDay'] = df['TransactionStartTime'].dt.day
-    df['TransactionMonth'] = df['TransactionStartTime'].dt.month
-    df['TransactionYear'] = df['TransactionStartTime'].dt.year
-    df['DayofWeek'] = df['TransactionStartTime'].dt.day_of_week
-    
+    df["TransactionHour"] = df["TransactionStartTime"].dt.hour
+    df["TransactionDay"] = df["TransactionStartTime"].dt.day
+    df["TransactionMonth"] = df["TransactionStartTime"].dt.month
+    df["TransactionYear"] = df["TransactionStartTime"].dt.year
+    df["DayofWeek"] = df["TransactionStartTime"].dt.day_of_week
+
     # These are the newly generated engineered categorical columns (Binary flags)
-    df['IsWeekend'] = df['TransactionStartTime'].dt.day_of_week.isin([5, 6]).astype(int)
-    df['IsReversal'] = (df['Amount'] < 0).astype(int)
+    df["IsWeekend"] = df["TransactionStartTime"].dt.day_of_week.isin([5, 6]).astype(int)
+    df["IsReversal"] = (df["Amount"] < 0).astype(int)
     return df
 
 
 class FeatureEngineerTransformer(BaseEstimator, TransformerMixin):
     def fit(self, X: pd.DataFrame, y=None):
         return self
+
     def transform(self, X: pd.DataFrame) -> pd.DataFrame:
         return engineer_features(X.copy())
 
@@ -186,7 +242,8 @@ class FeatureScaler(BaseEstimator, TransformerMixin):
 
     def fit(self, X: pd.DataFrame, y=None):
         self.numerical_cols_ = self.numerical_cols or [
-            col for col in X.columns
+            col
+            for col in X.columns
             if pd.api.types.is_numeric_dtype(X[col]) and col != TARGET_COL
         ]
         self.scaler_ = StandardScaler()
@@ -208,13 +265,17 @@ class DataFrameLabelEncoder(BaseEstimator, TransformerMixin):
 
     def fit(self, X: pd.DataFrame, y=None):
         X = X.copy()
-        present_cols = [col for col in X.columns if col in (self.categorical_cols or X.columns)]
+        present_cols = [
+            col for col in X.columns if col in (self.categorical_cols or X.columns)
+        ]
         # Gather all non-numeric columns except the raw timestamp
         self.cols_to_encode_ = [
-            col for col in present_cols 
-            if not pd.api.types.is_numeric_dtype(X[col]) and col != 'TransactionStartTime'
+            col
+            for col in present_cols
+            if not pd.api.types.is_numeric_dtype(X[col])
+            and col != "TransactionStartTime"
         ]
-        
+
         # Create a dictionary of LabelEncoders per column
         self.encoders_ = {}
         for col in self.cols_to_encode_:
@@ -230,47 +291,71 @@ class DataFrameLabelEncoder(BaseEstimator, TransformerMixin):
                 # Handle unseen values dynamically by mapping them to an 'unknown' integer if necessary
                 X[col] = le.transform(X[col].astype(str))
         return X
-    
-def apply_label_encoder(df: pd.DataFrame, cols: Optional[List[str]] = None) -> pd.DataFrame:
+
+
+def apply_label_encoder(
+    df: pd.DataFrame, cols: Optional[List[str]] = None
+) -> pd.DataFrame:
     """
     Safely applies Label Encoding to the specified columns of a DataFrame.
     """
     df = df.copy()  # Create a copy to avoid setting values on a copy slice warning
-    
+
     # Fallback to predefined CATEGORICAL_COLS if no specific columns are passed
-    columns_to_encode = cols if cols is not None else [
-        "TransactionId", "BatchId", "AccountId", "SubscriptionId", "CustomerId",
-        "CurrencyCode", "CountryCode", "ProviderId", "ProductId", "ProductCategory",
-        "ChannelId"
-    ]
-    
+    columns_to_encode = (
+        cols
+        if cols is not None
+        else [
+            "TransactionId",
+            "BatchId",
+            "AccountId",
+            "SubscriptionId",
+            "CustomerId",
+            "CurrencyCode",
+            "CountryCode",
+            "ProviderId",
+            "ProductId",
+            "ProductCategory",
+            "ChannelId",
+        ]
+    )
+
     le = LabelEncoder()
-    
+
     for col in columns_to_encode:
         if col in df.columns:
             # Convert to string first to handle any mixed data types or NaNs safely
-            df[col] = df[col].astype(str) 
+            df[col] = df[col].astype(str)
             df[col] = le.fit_transform(df[col])
-            
+
     print(df[columns_to_encode].head())
     return df
 
+
 # 8. Weight of Evidence (WoE) & Information Value (IV) Engineering
-def compute_woe_iv(df: pd.DataFrame, feature: str, target: str = TARGET_COL, epsilon: float = 1e-6) -> Tuple[pd.DataFrame, float]:
+def compute_woe_iv(
+    df: pd.DataFrame, feature: str, target: str = TARGET_COL, epsilon: float = 1e-6
+) -> Tuple[pd.DataFrame, float]:
     total_events = (df[target] == 1).sum()
     total_non_events = (df[target] == 0).sum()
 
-    stats = df.groupby(feature, observed=False)[target].agg(
-        events=lambda x: (x == 1).sum(),
-        non_events=lambda x: (x == 0).sum()
-    ).reset_index()
+    stats = (
+        df.groupby(feature, observed=False)[target]
+        .agg(events=lambda x: (x == 1).sum(), non_events=lambda x: (x == 0).sum())
+        .reset_index()
+    )
 
     stats["dist_events"] = (stats["events"] + epsilon) / (total_events + epsilon)
-    stats["dist_non_events"] = (stats["non_events"] + epsilon) / (total_non_events + epsilon)
+    stats["dist_non_events"] = (stats["non_events"] + epsilon) / (
+        total_non_events + epsilon
+    )
     stats["woe"] = np.log(stats["dist_events"] / stats["dist_non_events"])
-    stats["iv_component"] = (stats["dist_events"] - stats["dist_non_events"]) * stats["woe"]
+    stats["iv_component"] = (stats["dist_events"] - stats["dist_non_events"]) * stats[
+        "woe"
+    ]
     iv_total = stats["iv_component"].sum()
     return stats, iv_total
+
 
 def _iv_label(iv: float) -> str:
     if iv < 0.02:
@@ -308,7 +393,9 @@ def compute_all_iv(
         else:
             _, iv_value = compute_woe_iv(temp_df, feat, target)
         results.append({"feature": feat, "iv": iv_value})
-    iv_df = pd.DataFrame(results).sort_values("iv", ascending=False).reset_index(drop=True)
+    iv_df = (
+        pd.DataFrame(results).sort_values("iv", ascending=False).reset_index(drop=True)
+    )
     iv_df["predictive_power"] = iv_df["iv"].apply(_iv_label)
     return iv_df
 
@@ -342,7 +429,9 @@ def encode_woe(
 
 
 class WoEFeatureTransformer(BaseEstimator, TransformerMixin):
-    def __init__(self, categorical_cols: Optional[List[str]] = None, target_col: str = TARGET_COL):
+    def __init__(
+        self, categorical_cols: Optional[List[str]] = None, target_col: str = TARGET_COL
+    ):
         self.categorical_cols = categorical_cols
         self.target_col = target_col
 
@@ -350,15 +439,20 @@ class WoEFeatureTransformer(BaseEstimator, TransformerMixin):
         X = X.copy()
         if y is not None:
             X[self.target_col] = y
-            
+
         self.categorical_cols_ = self.categorical_cols or [
-            col for col in X.columns if col not in [self.target_col, 'TransactionStartTime'] and not pd.api.types.is_numeric_dtype(X[col])
+            col
+            for col in X.columns
+            if col not in [self.target_col, "TransactionStartTime"]
+            and not pd.api.types.is_numeric_dtype(X[col])
         ]
         self.woe_maps_ = {}
         for col in self.categorical_cols_:
             if col not in X.columns:
                 continue
-            stats_df, _ = compute_woe_iv(X[[col, self.target_col]], col, target=self.target_col)
+            stats_df, _ = compute_woe_iv(
+                X[[col, self.target_col]], col, target=self.target_col
+            )
             self.woe_maps_[col] = dict(zip(stats_df[col], stats_df["woe"]))
         return self
 
@@ -376,16 +470,21 @@ def build_feature_pipeline(
     categorical_cols: Optional[List[str]] = None,
     use_woe: bool = False,
 ) -> Pipeline:
-    
+
     # Injecting the newly extracted/engineered categorical features here!
     categorical_cols = categorical_cols or CATEGORICAL_COLS + [
         "IsWeekend",
-        "IsReversal"
+        "IsReversal",
     ]
 
     steps = [
         ("aggregations", CustomerAggregationTransformer()),
-        ("imputer", DataFrameImputer(numerical_cols=numerical_cols, categorical_cols=categorical_cols)),
+        (
+            "imputer",
+            DataFrameImputer(
+                numerical_cols=numerical_cols, categorical_cols=categorical_cols
+            ),
+        ),
         ("capper", OutlierCapper()),
         ("engineer", FeatureEngineerTransformer()),
         ("scaler", FeatureScaler(numerical_cols=numerical_cols)),
@@ -394,9 +493,12 @@ def build_feature_pipeline(
     if use_woe:
         steps.append(("woe", WoEFeatureTransformer(categorical_cols=categorical_cols)))
     else:
-        steps.append(("one_hot", DataFrameLabelEncoder(categorical_cols=categorical_cols)))
+        steps.append(
+            ("one_hot", DataFrameLabelEncoder(categorical_cols=categorical_cols))
+        )
 
     return Pipeline(steps)
+
 
 def fit_transform_pipeline(
     df: pd.DataFrame,
@@ -409,90 +511,116 @@ def fit_transform_pipeline(
 
 class ProxyTargetEngineer(BaseEstimator, TransformerMixin):
     """
-    Computes RFM profiles, segments customers using K-Means, 
+    Computes RFM profiles, segments customers using K-Means,
     and engineers an 'is_high_risk' proxy target column.
     """
+
     def __init__(self, n_clusters: int = 3, random_state: int = 42):
         self.n_clusters = n_clusters
         self.random_state = random_state
         self.scaler = StandardScaler()
-        self.kmeans = KMeans(n_clusters=self.n_clusters, random_state=self.random_state, n_init=10)
+        self.kmeans = KMeans(
+            n_clusters=self.n_clusters, random_state=self.random_state, n_init=10
+        )
         self.high_risk_cluster_id_ = None
 
     def fit(self, X: pd.DataFrame, y=None):
         X = X.copy()
-        X['TransactionStartTime'] = pd.to_datetime(X['TransactionStartTime'])
-        
+        X["TransactionStartTime"] = pd.to_datetime(X["TransactionStartTime"])
+
         # 1. Define Snapshot Date consistently (1 day after the latest transaction)
-        snapshot_date = X['TransactionStartTime'].max() + pd.Timedelta(days=1)
-        
+        snapshot_date = X["TransactionStartTime"].max() + pd.Timedelta(days=1)
+
         # 2. Calculate RFM Metrics
-        rfm = X.groupby('CustomerId').agg({
-            'TransactionStartTime': lambda x: (snapshot_date - x.max()).days, # Recency
-            'TransactionId': 'count',                                         # Frequency
-            'Amount': 'sum'                                                   # Monetary
-        }).rename(columns={
-            'TransactionStartTime': 'Recency',
-            'TransactionId': 'Frequency',
-            'Amount': 'Monetary'
-        })
-        
+        rfm = (
+            X.groupby("CustomerId")
+            .agg(
+                {
+                    "TransactionStartTime": lambda x: (
+                        snapshot_date - x.max()
+                    ).days,  # Recency
+                    "TransactionId": "count",  # Frequency
+                    "Amount": "sum",  # Monetary
+                }
+            )
+            .rename(
+                columns={
+                    "TransactionStartTime": "Recency",
+                    "TransactionId": "Frequency",
+                    "Amount": "Monetary",
+                }
+            )
+        )
+
         # Handle negative or zero monetary balances safely before log transforming
-        rfm['Monetary'] = rfm['Monetary'].clip(lower=0.1)
-        
+        rfm["Monetary"] = rfm["Monetary"].clip(lower=0.1)
+
         # 3. Log Transform to handle skewness, then Scale
         rfm_log = np.log1p(rfm)
         rfm_scaled = self.scaler.fit_transform(rfm_log)
-        
+
         # 4. Run K-Means
         self.kmeans.fit(rfm_scaled)
-        rfm['Cluster'] = self.kmeans.labels_
-        
-        # 5. Automatically identify the "High-Risk" Cluster 
+        rfm["Cluster"] = self.kmeans.labels_
+
+        # 5. Automatically identify the "High-Risk" Cluster
         # (Lowest average frequency and lowest average monetary spend)
-        cluster_profiles = rfm.groupby('Cluster')[['Frequency', 'Monetary']].mean()
-        
+        cluster_profiles = rfm.groupby("Cluster")[["Frequency", "Monetary"]].mean()
+
         # High risk = rank by combined low metrics
         # We find the cluster where the sum of normalized ranks for Frequency and Monetary is lowest
-        rank_sum = cluster_profiles['Frequency'].rank() + cluster_profiles['Monetary'].rank()
+        rank_sum = (
+            cluster_profiles["Frequency"].rank() + cluster_profiles["Monetary"].rank()
+        )
         self.high_risk_cluster_id_ = rank_sum.idxmin()
-        
-        logger.info(f"Identified Cluster {self.high_risk_cluster_id_} as the High-Risk Proxy.")
+
+        logger.info(
+            f"Identified Cluster {self.high_risk_cluster_id_} as the High-Risk Proxy."
+        )
         return self
 
     def transform(self, X: pd.DataFrame) -> pd.DataFrame:
         X = X.copy()
-        X['TransactionStartTime'] = pd.to_datetime(X['TransactionStartTime'])
-        snapshot_date = X['TransactionStartTime'].max() + pd.Timedelta(days=1)
-        
+        X["TransactionStartTime"] = pd.to_datetime(X["TransactionStartTime"])
+        snapshot_date = X["TransactionStartTime"].max() + pd.Timedelta(days=1)
+
         # Recalculate customer-level labels to safely map back to transaction entries
-        rfm = X.groupby('CustomerId').agg({
-            'TransactionStartTime': lambda x: (snapshot_date - x.max()).days,
-            'TransactionId': 'count',
-            'Amount': 'sum'
-        }).rename(columns={
-            'TransactionStartTime': 'Recency',
-            'TransactionId': 'Frequency',
-            'Amount': 'Monetary'
-        })
-        
-        rfm['Monetary'] = rfm['Monetary'].clip(lower=0.1)
+        rfm = (
+            X.groupby("CustomerId")
+            .agg(
+                {
+                    "TransactionStartTime": lambda x: (snapshot_date - x.max()).days,
+                    "TransactionId": "count",
+                    "Amount": "sum",
+                }
+            )
+            .rename(
+                columns={
+                    "TransactionStartTime": "Recency",
+                    "TransactionId": "Frequency",
+                    "Amount": "Monetary",
+                }
+            )
+        )
+
+        rfm["Monetary"] = rfm["Monetary"].clip(lower=0.1)
         rfm_log = np.log1p(rfm)
         rfm_scaled = self.scaler.transform(rfm_log)
-        
+
         # Predict clusters
         clusters = self.kmeans.predict(rfm_scaled)
-        rfm['Cluster'] = clusters
-        
+        rfm["Cluster"] = clusters
+
         # Assign Target column: 1 if high-risk cluster, else 0
-        rfm['is_high_risk'] = (rfm['Cluster'] == self.high_risk_cluster_id_).astype(int)
-        
+        rfm["is_high_risk"] = (rfm["Cluster"] == self.high_risk_cluster_id_).astype(int)
+
         # Map target back to the transaction-level dataframe
-        target_map = rfm['is_high_risk'].to_dict()
-        X['is_high_risk'] = X['CustomerId'].map(target_map)
-        
+        target_map = rfm["is_high_risk"].to_dict()
+        X["is_high_risk"] = X["CustomerId"].map(target_map)
+
         return X
-    
+
+
 def split_data(
     df: pd.DataFrame,
     target: str = TARGET_COL,
@@ -528,4 +656,3 @@ def scale_features(
     X_val_scaled = scaler_transformer.transform(X_val)
     X_test_scaled = scaler_transformer.transform(X_test)
     return X_train_scaled, X_val_scaled, X_test_scaled, scaler_transformer.scaler_
-
