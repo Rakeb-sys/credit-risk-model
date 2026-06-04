@@ -91,6 +91,22 @@ def load_processed_data(filepath: str) -> pd.DataFrame:
     logger.info(f"Loading processed data from: {filepath}")
     return pd.read_csv(filepath)
 
+def handle_missing_values(df: pd.DataFrame) -> pd.DataFrame:
+    df = df.copy()
+    missing_before = df.isnull().sum().sum()
+    for col in NUMERICAL_COLS:
+        if col in df.columns and df[col].isnull().any():
+            median_val = df[col].median()
+            df[col].fillna(median_val, inplace=True)
+            logger.debug(f"Imputed {col} with median={median_val:.2f}")
+    for col in CATEGORICAL_COLS:
+        if col in df.columns and df[col].isnull().any():
+            mode_val = df[col].mode()[0]
+            df[col].fillna(mode_val, inplace=True)
+            logger.debug(f"Imputed {col} with mode={mode_val}")
+    missing_after = df.isnull().sum().sum()
+    logger.info(f"Missing values: {missing_before} -> {missing_after}")
+    return df
 
 # 2. Advanced Feature Engineering (Customer Level Aggregates)
 class CustomerAggregationTransformer(BaseEstimator, TransformerMixin):
