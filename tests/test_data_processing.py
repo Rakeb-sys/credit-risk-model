@@ -1,20 +1,18 @@
-import pytest
-import pandas as pd
 import numpy as np
+import pandas as pd
+import pytest
+
 from src.data_processing import (
-    cap_outliers,
+    TARGET_COL,
     OutlierCapper,
+    _iv_label,
+    cap_outliers,
     compute_all_iv,
     compute_woe_iv,
     engineer_features,
     handle_missing_values,
     split_data,
-    fit_transform_pipeline,
-    _iv_label,
-    NUMERICAL_COLS,
-    TARGET_COL,
 )
-
 
 # =======================================
 # Fixtures Configuration

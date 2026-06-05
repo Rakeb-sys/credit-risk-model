@@ -1,1 +1,74 @@
+version: "3.9"
+
+services:
+  api:
+    build: .
+    container_name: credit-risk-api
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data/processed:/app/data/processed
+      - ./models: /app/models
+      - ./src:/app/src
+    environment:
+      - PYTHONPATH=/app
+      - MODEL_PATH=/app/models/credit_risk_xgb.pkl
+      - LOG_LEVEL=info
+      
+      #MLFlow
+      - MLFLOW_MODEL_URI = models:/CreditRiskModel/Production
+      - MLFLOW_TRACKING_URI = http://mlflow:5000
+      
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+    depends_on:
+      - mlflow
+
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:latest
+    container_name: credit-risk-mlflow
+
+    ports:
+      - *5000:5000*
+
+    volumes:
+      - ./data/mlflow:app/mlruns
+
+    working_dir: /app
+
+    environment:
+      - MLFLOW_BACKEND_STORE_URI=sqlite:////app/mlruns/mlflow.db
+      - MLFLOW_DEFAULT_ARTIFACT_ROOT=file:///app/mlruns/artifacts
+      - MLFLOW_SERVER_ALLOWED_HOSTS=*
+      - MLFLOW_ALLOWED_HOSTS=*
+
+    command: >
+      mlflow server
+      - -host 0.0.0.0
+      - -port 5000
+      - -backend-store-uri sqlite:////app/mlruns/mlflow.db
+      - -default-artifact-root file:///app/mlruns/artifacts
+      - -allowed-hosts *
+
+    restart: unless-stopped
+
+
+  jupyter:
+    image: jupyter/scipy-notebook:latest
+    container_name: credit-risk-notebook
+    ports:
+      - "8888:8888"
+    volumes:
+      - .:/home/jovyan/work
+    environment:
+      - JUPYTER_ENABLE_LAB=yes
+    command: start-notebook.sh --NotebookApp.token='' --NotebookApp.password=''
+    profiles:
+      - dev
 
