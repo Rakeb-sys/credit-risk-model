@@ -1,16 +1,14 @@
 import logging
-import os
 from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
 from sklearn.base import BaseEstimator, TransformerMixin
-from sklearn.impute import SimpleImputer
-from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import LabelEncoder, OneHotEncoder, StandardScaler
-from sklearn.model_selection import train_test_split
 from sklearn.cluster import KMeans
-
+from sklearn.impute import SimpleImputer
+from sklearn.model_selection import train_test_split
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import LabelEncoder, StandardScaler
 
 # Setup logging
 logging.basicConfig(
@@ -59,7 +57,7 @@ COLUMN_NAMES = [
 
 # --- EXTENDED UTILITIES DETECT ---
 try:
-    from xverse import iv, WoETransformer
+    from xverse import WoETransformer, iv
 
     _has_xverse = True
 except Exception:
@@ -98,12 +96,12 @@ def handle_missing_values(df: pd.DataFrame) -> pd.DataFrame:
     for col in NUMERICAL_COLS:
         if col in df.columns and df[col].isnull().any():
             median_val = df[col].median()
-            df[col].fillna(median_val, inplace=True)
+            df[col] = df[col].fillna(median_val)
             logger.debug(f"Imputed {col} with median={median_val:.2f}")
     for col in CATEGORICAL_COLS:
         if col in df.columns and df[col].isnull().any():
             mode_val = df[col].mode()[0]
-            df[col].fillna(mode_val, inplace=True)
+            df[col] = df[col].fillna(mode_val)
             logger.debug(f"Imputed {col} with mode={mode_val}")
     missing_after = df.isnull().sum().sum()
     logger.info(f"Missing values: {missing_before} -> {missing_after}")

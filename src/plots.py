@@ -1,5 +1,5 @@
 import matplotlib.pyplot as plt
-import pandas as pd
+import numpy as np  # noqa: F401
 import seaborn as sns
 
 
@@ -11,7 +11,6 @@ def plot_corr(df):
     fig, ax = plt.subplots(figsize=(8, 6))
 
     # 4. Generate a mask for the upper triangle (optional, to avoid duplicate data)
-    import numpy as np
 
     # mask = np.triu(np.ones_like(correlation_matrix, dtype=bool))
 

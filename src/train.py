@@ -1,14 +1,13 @@
 import logging
 import os
+
 import joblib
-import numpy as np
 import pandas as pd
-from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import (
     accuracy_score,
     classification_report,
-    confusion_matrix,
     f1_score,
     precision_score,
     recall_score,
@@ -18,13 +17,13 @@ from sklearn.model_selection import GridSearchCV, StratifiedKFold
 from xgboost import XGBClassifier
 
 from src.data_processing import (
-    load_processed_data,
-    split_data,
-    scale_features,
-    encode_woe,
     CATEGORICAL_COLS,
     NUMERICAL_COLS,
     TARGET_COL,
+    encode_woe,
+    load_processed_data,
+    scale_features,
+    split_data,
 )
 
 logging.basicConfig(
